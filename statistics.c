@@ -2,44 +2,33 @@
 #include <limits.h>
 #include "statistics.h"
 
-static int get_total_score(const Applicant *applicant) {
-    int third_subject;
-
-    if (applicant->physics > applicant->informatics) {
-        third_subject = applicant->physics;
-    } else {
-        third_subject = applicant->informatics;
-    }
-
-    return applicant->russian
-        + applicant->mathematics
-        + third_subject;
-}
-
 void calculate_statistics(
     const Direction *direction,
+    const Applicant applicants[],
+    int applicant_count,
+    int direction_index,
     Statistics *statistics
 ) {
+    (void)direction;
+
     statistics->average_without_benefits = 0.0;
     statistics->average_with_benefits = 0.0;
-
     statistics->minimum_score = INT_MAX;
     statistics->maximum_score = 0;
 
     statistics->special_quota_count = 0;
     statistics->separate_quota_count = 0;
     statistics->target_admission_count = 0;
+    statistics->bvi_count = 0;
 
     statistics->average_russian = 0.0;
     statistics->average_mathematics = 0.0;
     statistics->average_physics = 0.0;
     statistics->average_informatics = 0.0;
-
-    statistics->applicant_count = direction->applicant_count;
+    statistics->applicant_count = 0;
 
     double sum_without_benefits = 0.0;
     double sum_with_benefits = 0.0;
-
     double sum_russian = 0.0;
     double sum_mathematics = 0.0;
     double sum_physics = 0.0;
@@ -47,16 +36,30 @@ void calculate_statistics(
 
     int count_without_benefits = 0;
 
-    const Applicant *ptr = direction->applicants;
-    const Applicant *end = ptr + direction->applicant_count;
+    for (int i = 0; i < applicant_count; i++) {
+        const Applicant *ptr = &applicants[i];
+        int applied = 0;
 
-    while (ptr < end) {
+        for (int j = 0; j < ptr->application_count; j++) {
+            if (ptr->applications[j].direction_index == direction_index) {
+                applied = 1;
+                break;
+            }
+        }
+
+        if (!applied) {
+            continue;
+        }
+
         int total_score = get_total_score(ptr);
 
-        sum_with_benefits +=
-            ptr->benefit == BVI ? 300 : total_score;
+        statistics->applicant_count++;
 
-        if (ptr->benefit != BVI) {
+        if (ptr->benefit == BVI) {
+            sum_with_benefits += 300;
+            statistics->bvi_count++;
+        } else {
+            sum_with_benefits += total_score;
             sum_without_benefits += total_score;
             count_without_benefits++;
         }
@@ -81,8 +84,6 @@ void calculate_statistics(
         sum_mathematics += ptr->mathematics;
         sum_physics += ptr->physics;
         sum_informatics += ptr->informatics;
-
-        ptr++;
     }
 
     if (count_without_benefits > 0) {
@@ -105,6 +106,8 @@ void calculate_statistics(
 
         statistics->average_informatics =
             sum_informatics / statistics->applicant_count;
+    } else {
+        statistics->minimum_score = 0;
     }
 }
 
@@ -114,74 +117,33 @@ void print_statistics(
 ) {
     printf("\n========================================\n");
     printf("Направление: %s\n", direction->name);
+    printf("Код направления: %s\n", direction->code);
     printf("========================================\n");
 
-    printf(
-        "Количество абитуриентов: %d\n",
-        statistics->applicant_count
-    );
+    printf("Бюджетных мест: %d\n", direction->budget_places);
+    printf("Подали заявление: %d\n", statistics->applicant_count);
 
-    printf(
-        "Бюджетных мест: %d\n",
-        direction->budget_places
-    );
+    printf("Средний конкурсный балл без БВИ: %.2f\n",
+           statistics->average_without_benefits);
 
-    printf(
-        "Средний балл без БВИ: %.2f\n",
-        statistics->average_without_benefits
-    );
+    printf("Средний балл с учётом БВИ: %.2f\n",
+           statistics->average_with_benefits);
 
-    printf(
-        "Средний балл с учётом БВИ: %.2f\n",
-        statistics->average_with_benefits
-    );
+    printf("Минимальный конкурсный балл: %d\n",
+           statistics->minimum_score);
 
-    printf(
-        "Минимальный конкурсный балл: %d\n",
-        statistics->minimum_score
-    );
-
-    printf(
-        "Максимальный конкурсный балл: %d\n",
-        statistics->maximum_score
-    );
+    printf("Максимальный конкурсный балл: %d\n",
+           statistics->maximum_score);
 
     printf("\nКоличество льготников:\n");
-
-    printf(
-        "Особая квота: %d\n",
-        statistics->special_quota_count
-    );
-
-    printf(
-        "Отдельная квота: %d\n",
-        statistics->separate_quota_count
-    );
-
-    printf(
-        "Целевой приём: %d\n",
-        statistics->target_admission_count
-    );
+    printf("Особая квота: %d\n", statistics->special_quota_count);
+    printf("Отдельная квота: %d\n", statistics->separate_quota_count);
+    printf("Целевой приём: %d\n", statistics->target_admission_count);
+    printf("БВИ: %d\n", statistics->bvi_count);
 
     printf("\nСредние оценки по предметам:\n");
-
-    printf(
-        "Русский язык: %.2f\n",
-        statistics->average_russian
-    );
-
-    printf(
-        "Математика: %.2f\n",
-        statistics->average_mathematics
-    );
-
-    printf(
-        "Физика: %.2f\n",
-        statistics->average_physics
-    );
-
-    printf(
-        "Информатика: %.2f\n",
-        statistics->average_informatics
-    );
+    printf("Русский язык: %.2f\n", statistics->average_russian);
+    printf("Математика: %.2f\n", statistics->average_mathematics);
+    printf("Физика: %.2f\n", statistics->average_physics);
+    printf("Информатика: %.2f\n", statistics->average_informatics);
 }

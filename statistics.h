@@ -13,6 +13,7 @@ typedef struct {
     int special_quota_count;
     int separate_quota_count;
     int target_admission_count;
+    int bvi_count;
 
     double average_russian;
     double average_mathematics;
@@ -24,6 +25,9 @@ typedef struct {
 
 void calculate_statistics(
     const Direction *direction,
+    const Applicant applicants[],
+    int applicant_count,
+    int direction_index,
     Statistics *statistics
 );
 
